@@ -1,0 +1,26 @@
+services:
+  db:
+    image: ${TIBERO_IMAGE:-tiberoofficial/tibero:latest}
+    hostname: ${TIBERO_HOSTNAME:-tibero}
+    ports:
+      - "${TIBERO_PORT:-8629}:8629"
+    volumes:
+      - ${TIBERO_LICENSE_FILE:?Set TIBERO_LICENSE_FILE}:/opt/tibero7/license/license.xml:ro
+
+  e2e:
+    build:
+      context: .
+      dockerfile: docker/e2e.Dockerfile
+      args:
+        BASE_IMAGE: ${TIBERO_IMAGE:-tiberoofficial/tibero:latest}
+    depends_on:
+      - db
+    environment:
+      PYTIBERO_RUN_E2E: "1"
+      PYTIBERO_HOST: db
+      PYTIBERO_PORT: "${TIBERO_PORT:-8629}"
+      PYTIBERO_DATABASE: ${TIBERO_DATABASE:-test}
+      PYTIBERO_USER: ${TIBERO_USER:-tibero}
+      PYTIBERO_PASSWORD: ${TIBERO_PASSWORD:-tmax}
+      PYTIBERO_DRIVER: ${TIBERO_DRIVER:-Tibero 7 ODBC Driver}
+

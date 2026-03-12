@@ -1,0 +1,6 @@
+services:
+  unit:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+

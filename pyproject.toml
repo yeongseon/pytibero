@@ -1,0 +1,56 @@
+[build-system]
+requires = ["setuptools>=65.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pytibero"
+version = "0.1.0"
+description = "Unofficial Python DB-API 2.0 connector for Tibero"
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.10"
+authors = [
+    {name = "Yeongseon Choe", email = "yeongseon.choe@gmail.com"},
+]
+keywords = ["Tibero", "database", "driver", "DB-API", "PEP 249"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Database",
+    "Topic :: Database :: Front-Ends",
+]
+dependencies = [
+    "pyodbc>=5.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "ruff>=0.4",
+]
+
+[tool.setuptools]
+packages = ["pytibero"]
+include-package-data = true
+
+[tool.setuptools.package-data]
+pytibero = ["py.typed"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--tb native -v -r fxX --maxfail=25 -p no:warnings"
+python_files = "test_*.py"
+markers = [
+    "e2e: end-to-end tests that require dockerized database services",
+]
