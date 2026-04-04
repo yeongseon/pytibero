@@ -16,6 +16,9 @@ class ConnectionConfig:
     password: str = ""
     dsn: str | None = None
     driver: str = "Tibero 7 ODBC Driver"
+    backend: str = "pyodbc"
+    tbcli_library: str | None = None
     autocommit: bool = False
     login_timeout: int | None = None
+    connect_kwargs: dict[str, object] = field(default_factory=dict)
     options: dict[str, object] = field(default_factory=dict)

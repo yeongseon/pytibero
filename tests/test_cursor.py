@@ -4,7 +4,12 @@ import unittest
 from unittest.mock import patch
 
 import pytibero
-from pytibero.exceptions import InterfaceError, OperationalError, ProgrammingError
+from pytibero.exceptions import (
+    InterfaceError,
+    NotSupportedError,
+    OperationalError,
+    ProgrammingError,
+)
 
 from tests.fakes import FakeCursor, FakeOperationalError, FakePyodbcModule
 
@@ -42,6 +47,25 @@ class CursorTestCase(unittest.TestCase):
             self.assertEqual(cursor.description, (("value", 1, None, None, None, None, True),))
             self.assertEqual(cursor.rowcount, 2)
 
+    def test_cursor_exposes_connection_and_tracks_rownumber(self) -> None:
+        fake_pyodbc = FakePyodbcModule()
+
+        with patch("pytibero.connection.import_module", return_value=fake_pyodbc):
+            connection = pytibero.connect()
+            cursor = connection.cursor()
+
+            self.assertIs(cursor.connection, connection)
+            self.assertIsNone(cursor.rownumber)
+
+            cursor.execute("SELECT 1")
+            self.assertEqual(cursor.rownumber, 0)
+            self.assertEqual(cursor.fetchone(), (1,))
+            self.assertEqual(cursor.rownumber, 1)
+            self.assertEqual(cursor.fetchmany(), [(2,)])
+            self.assertEqual(cursor.rownumber, 2)
+            self.assertEqual(cursor.fetchall(), [])
+            self.assertEqual(cursor.rownumber, 2)
+
     def test_lastrowid_and_noop_size_methods(self) -> None:
         fake_pyodbc = FakePyodbcModule()
 
@@ -61,6 +85,47 @@ class CursorTestCase(unittest.TestCase):
             cursor.callproc("hello_proc", (1, "a"))
 
             self.assertEqual(cursor.native_cursor.executed[-1], ("CALL hello_proc(?, ?)", (1, "a")))
+
+    def test_scroll_delegates_to_backend_when_supported(self) -> None:
+        fake_pyodbc = FakePyodbcModule()
+
+        with patch("pytibero.connection.import_module", return_value=fake_pyodbc):
+            cursor = pytibero.connect().cursor()
+
+            cursor.scroll(3, mode="absolute")
+
+            self.assertEqual(cursor.native_cursor.scroll_calls, [(3, "absolute")])
+            self.assertEqual(cursor.rownumber, 3)
+
+            cursor.scroll(-1)
+            self.assertEqual(cursor.native_cursor.scroll_calls[-1], (-1, "relative"))
+            self.assertEqual(cursor.rownumber, 2)
+
+    def test_scroll_raises_not_supported_without_backend_support(self) -> None:
+        class NoScrollCursor(FakeCursor):
+            scroll = None
+
+        fake_pyodbc = FakePyodbcModule(cursor_factory=NoScrollCursor)
+
+        with patch("pytibero.connection.import_module", return_value=fake_pyodbc):
+            cursor = pytibero.connect().cursor()
+
+            with self.assertRaises(NotSupportedError):
+                cursor.scroll(1)
+
+    def test_scroll_backend_errors_are_mapped(self) -> None:
+        class BrokenScrollCursor(FakeCursor):
+            def scroll(self, value: int, mode: str = "relative") -> None:
+                _ = (value, mode)
+                raise FakeOperationalError("scroll failed")
+
+        fake_pyodbc = FakePyodbcModule(cursor_factory=BrokenScrollCursor)
+
+        with patch("pytibero.connection.import_module", return_value=fake_pyodbc):
+            cursor = pytibero.connect().cursor()
+
+            with self.assertRaises(OperationalError):
+                cursor.scroll(1)
 
     def test_callproc_without_parameters_and_context_manager(self) -> None:
         fake_pyodbc = FakePyodbcModule()
@@ -148,6 +213,34 @@ class CursorTestCase(unittest.TestCase):
             cursor = pytibero.connect().cursor()
 
             self.assertIsNone(cursor.nextset())
+
+    def test_cursor_rejects_operations_after_connection_close(self) -> None:
+        fake_pyodbc = FakePyodbcModule()
+
+        with patch("pytibero.connection.import_module", return_value=fake_pyodbc):
+            connection = pytibero.connect()
+            cursor = connection.cursor()
+            connection.close()
+
+            with self.assertRaises(InterfaceError):
+                _ = cursor.description
+            with self.assertRaises(InterfaceError):
+                cursor.fetchone()
+
+    def test_nextset_resets_rownumber_and_fetchmany_zero_rows_preserves_none(self) -> None:
+        fake_pyodbc = FakePyodbcModule()
+
+        with patch("pytibero.connection.import_module", return_value=fake_pyodbc):
+            cursor = pytibero.connect().cursor()
+            self.assertEqual(cursor.fetchmany(), [])
+            self.assertIsNone(cursor.rownumber)
+
+            cursor.execute("SELECT 1")
+            _ = cursor.fetchone()
+            self.assertEqual(cursor.rownumber, 1)
+
+            cursor.nextset()
+            self.assertEqual(cursor.rownumber, 0)
 
 
 if __name__ == "__main__":

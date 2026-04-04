@@ -54,3 +54,8 @@ python_files = "test_*.py"
 markers = [
     "e2e: end-to-end tests that require dockerized database services",
 ]
+
+[tool.coverage.run]
+omit = [
+    "pytibero/tbcli.py",
+]

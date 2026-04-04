@@ -45,3 +45,40 @@ import pytibero
 conn = pytibero.connect(dsn="TIBERO_TEST", user="tibero", password="tmax")
 ```
 
+### Native tbCLI backend
+
+```python
+import pytibero
+
+conn = pytibero.connect(
+    host="localhost",
+    user="tibero",
+    password="tmax",
+    backend="tbcli",
+    tbcli_library="/opt/tibero7/client/lib/libtbcli.so",
+)
+```
+
+Use the `tbcli` backend when the Tibero native client library is installed on
+the host. If `tbcli_library` is omitted, `pytibero` will try to discover
+`libtbcli.so` automatically.
+
+### Advanced options
+
+```python
+import pytibero
+
+conn = pytibero.connect(
+    host="localhost",
+    user="tibero",
+    password="tmax",
+    autocommit=True,
+    readonly=True,
+    ApplicationName="pytibero-app",
+)
+```
+
+Common `pyodbc.connect(...)` kwargs such as `readonly`, `ansi`, `timeout`,
+`attrs_before`, and `unicode_results` are passed through as native connection
+arguments. Other extra keyword arguments are appended to the ODBC connection
+string.

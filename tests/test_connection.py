@@ -4,8 +4,8 @@ import unittest
 from unittest.mock import patch
 
 import pytibero
-from pytibero.connection import _map_backend_error
-from pytibero.exceptions import Error, InterfaceError, OperationalError
+from pytibero.connection import _extract_backend_error_details, _map_backend_error
+from pytibero.exceptions import Error, InterfaceError, NotSupportedError, OperationalError
 
 from tests.fakes import (
     ErrorRaisingNativeConnection,
@@ -16,6 +16,28 @@ from tests.fakes import (
 
 
 class ConnectionTestCase(unittest.TestCase):
+    def test_unsupported_backend_raises_interface_error(self) -> None:
+        with self.assertRaises(InterfaceError):
+            pytibero.connect(backend="unsupported")
+
+    def test_connect_routes_pyodbc_connect_kwargs(self) -> None:
+        fake_pyodbc = FakePyodbcModule()
+
+        with patch("pytibero.connection.import_module", return_value=fake_pyodbc):
+            connection = pytibero.connect(
+                autocommit=True,
+                readonly=True,
+                ansi=False,
+                ApplicationName="pytibero-tests",
+            )
+
+            native = connection.native_connection
+            self.assertTrue(connection.autocommit)
+            self.assertEqual(native.connect_kwargs, {"readonly": True, "ansi": False})
+            self.assertIn("ApplicationName=pytibero-tests", native.connection_string)
+            self.assertNotIn("readonly", native.connection_string)
+            self.assertNotIn("ansi", native.connection_string)
+
     def test_missing_pyodbc_raises_interface_error(self) -> None:
         with patch("pytibero.connection.import_module", side_effect=ModuleNotFoundError):
             with self.assertRaises(InterfaceError):
@@ -56,8 +78,71 @@ class ConnectionTestCase(unittest.TestCase):
             self.assertEqual(native.rollback_calls, 1)
             self.assertTrue(native.closed)
 
+    def test_execute_creates_and_returns_a_cursor(self) -> None:
+        fake_pyodbc = FakePyodbcModule()
+
+        with patch("pytibero.connection.import_module", return_value=fake_pyodbc):
+            connection = pytibero.connect()
+
+            cursor = connection.execute("SELECT ?", (1,))
+
+            self.assertEqual(cursor.native_cursor.executed[-1], ("SELECT ?", (1,)))
+            self.assertIs(cursor.connection, connection)
+
+    def test_getinfo_passthrough_is_supported(self) -> None:
+        fake_pyodbc = FakePyodbcModule()
+
+        with patch("pytibero.connection.import_module", return_value=fake_pyodbc):
+            connection = pytibero.connect()
+
+            self.assertEqual(connection.getinfo(7), "info:7")
+
+    def test_native_passthrough_helpers_delegate_and_missing_methods_raise(self) -> None:
+        fake_pyodbc = FakePyodbcModule()
+
+        class NativeWithHelpers(fake_pyodbc.connections.__class__):  # type: ignore[misc, valid-type]
+            pass
+
+        with patch("pytibero.connection.import_module", return_value=fake_pyodbc):
+            connection = pytibero.connect()
+            native = connection.native_connection
+            native.setencoding = lambda *args, **kwargs: ("setencoding", args, kwargs)
+            native.setdecoding = lambda *args, **kwargs: ("setdecoding", args, kwargs)
+            native.add_output_converter = lambda *args, **kwargs: ("add", args, kwargs)
+            native.clear_output_converters = lambda: "cleared"
+            native.remove_output_converter = lambda *args, **kwargs: ("remove", args, kwargs)
+
+            self.assertEqual(connection.setencoding("utf-8"), ("setencoding", ("utf-8",), {}))
+            self.assertEqual(
+                connection.setdecoding(1, encoding="utf-8"),
+                ("setdecoding", (1,), {"encoding": "utf-8"}),
+            )
+            self.assertEqual(
+                connection.add_output_converter(7, object()), ("add", (7, unittest.mock.ANY), {})
+            )
+            self.assertEqual(connection.clear_output_converters(), "cleared")
+            self.assertEqual(connection.remove_output_converter(7), ("remove", (7,), {}))
+
+            del native.clear_output_converters
+            with self.assertRaises(NotSupportedError):
+                connection.clear_output_converters()
+
+    def test_native_passthrough_helper_errors_are_mapped(self) -> None:
+        fake_pyodbc = FakePyodbcModule()
+
+        with patch("pytibero.connection.import_module", return_value=fake_pyodbc):
+            connection = pytibero.connect()
+            connection.native_connection.setencoding = lambda *args, **kwargs: (
+                _ for _ in ()
+            ).throw(FakeOperationalError("setencoding failed"))
+
+            with self.assertRaises(OperationalError):
+                connection.setencoding("utf-8")
+
     def test_backend_errors_are_mapped(self) -> None:
-        fake_pyodbc = FakePyodbcModule(cursor_factory=lambda: FailingCursor(FakeOperationalError("down")))
+        fake_pyodbc = FakePyodbcModule(
+            cursor_factory=lambda: FailingCursor(FakeOperationalError("down"))
+        )
 
         with patch("pytibero.connection.import_module", return_value=fake_pyodbc):
             connection = pytibero.connect()
@@ -119,7 +204,9 @@ class ConnectionTestCase(unittest.TestCase):
 
         with patch("pytibero.connection.import_module", return_value=fake_pyodbc):
             connection = pytibero.connect()
-            connection._native = ErrorRaisingNativeConnection("dsn", close_error=FakeOperationalError("close failed"))
+            connection._native = ErrorRaisingNativeConnection(
+                "dsn", close_error=FakeOperationalError("close failed")
+            )
 
             with self.assertRaises(OperationalError):
                 connection.close()
@@ -139,6 +226,25 @@ class ConnectionTestCase(unittest.TestCase):
 
         self.assertIsInstance(mapped, Error)
         self.assertEqual(str(mapped), "generic")
+
+    def test_map_backend_error_preserves_database_details(self) -> None:
+        class DetailedBackendError(FakeOperationalError):
+            def __init__(self) -> None:
+                super().__init__("HY000", "[HY000] [Tibero] syntax error", 11023)
+
+        mapped = _map_backend_error(DetailedBackendError(), FakePyodbcModule())
+
+        self.assertIsInstance(mapped, OperationalError)
+        self.assertEqual(mapped.sqlstate, "HY000")
+        self.assertEqual(mapped.errno, 11023)
+        self.assertEqual(mapped.code, 11023)
+        self.assertIn("syntax error", mapped.msg)
+
+    def test_extract_backend_error_details_handles_empty_and_blank_messages(self) -> None:
+        self.assertEqual(_extract_backend_error_details(Exception()), ("", 0, None, None))
+
+        error = RuntimeError("HY000", "", 9)
+        self.assertEqual(_extract_backend_error_details(error), ("9", 9, 9, "HY000"))
 
 
 if __name__ == "__main__":

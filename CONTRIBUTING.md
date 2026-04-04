@@ -13,6 +13,7 @@ pip install -e ".[dev]"
 ```bash
 make test
 make test-docker
+export TIBERO_LICENSE_FILE=/abs/path/to/license.xml
 make test-e2e-docker
 ruff check .
 ruff format .

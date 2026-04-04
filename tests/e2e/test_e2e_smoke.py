@@ -9,7 +9,9 @@ import uuid
 import pytibero
 
 
-@unittest.skipUnless(os.getenv("PYTIBERO_RUN_E2E") == "1", "set PYTIBERO_RUN_E2E=1 to run e2e tests")
+@unittest.skipUnless(
+    os.getenv("PYTIBERO_RUN_E2E") == "1", "set PYTIBERO_RUN_E2E=1 to run e2e tests"
+)
 class TiberoE2ETestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:

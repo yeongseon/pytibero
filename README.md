@@ -1,5 +1,8 @@
 # pytibero
 
+[![CI](https://github.com/yeongseon/pytibero/actions/workflows/ci.yml/badge.svg)](https://github.com/yeongseon/pytibero/actions/workflows/ci.yml)
+[![PyPI version](https://img.shields.io/pypi/v/pytibero)](https://pypi.org/project/pytibero/)
+
 **Unofficial Python DB-API 2.0 connector for Tibero**
 
 `pytibero` provides a Pythonic DB-API 2.0 interface for Tibero databases. The
@@ -13,7 +16,10 @@ TmaxSoft. This project is not affiliated with TmaxSoft.
 
 - Python DB-API 2.0 compatible module surface
 - Direct host/port or DSN-based Tibero ODBC connections
+- Optional `tbcli` backend for Tibero's native client library path
+- Explicit `autocommit` plus routed `pyodbc.connect(...)` keyword support
 - Package-owned exception hierarchy and type constructors
+- Safe access to common `pyodbc` connection metadata such as `getinfo(...)`
 - Dockerized unit-test workflow with a 95% coverage target
 - Docker-based end-to-end test harness for licensed Tibero environments
 
@@ -57,6 +63,48 @@ import pytibero
 conn = pytibero.connect(dsn="TIBERO_TEST", user="tibero", password="tmax")
 ```
 
+### Native `tbcli` backend
+
+```python
+import pytibero
+
+conn = pytibero.connect(
+    host="localhost",
+    port=8629,
+    database="test",
+    user="tibero",
+    password="tmax",
+    backend="tbcli",
+    tbcli_library="/opt/tibero7/client/lib/libtbcli.so",
+)
+```
+
+`backend="tbcli"` uses Tibero's native CLI library instead of `pyodbc`. This
+path is intended for environments where the vendor client library is available
+locally.
+
+### Advanced connection options
+
+```python
+import pytibero
+
+conn = pytibero.connect(
+    host="localhost",
+    user="tibero",
+    password="tmax",
+    autocommit=True,
+    readonly=True,
+    ansi=False,
+    ApplicationName="pytibero-app",
+)
+
+print(conn.getinfo(17))
+```
+
+`readonly`, `ansi`, and similar `pyodbc.connect(...)` options are forwarded as
+native connect kwargs, while additional values such as `ApplicationName` stay in
+the ODBC connection string.
+
 ## Testing
 
 ### Unit tests in Docker
@@ -71,6 +119,7 @@ threshold.
 ### End-to-end tests in Docker
 
 ```bash
+export TIBERO_LICENSE_FILE=/abs/path/to/license.xml
 make test-e2e-docker
 ```
 
@@ -96,6 +145,7 @@ pytibero/
     types.py
     protocol.py
     config.py
+    tbcli.py
 tests/
 docs/
 ```

@@ -32,9 +32,12 @@ valid license file.
 ### Run e2e
 
 ```bash
+export TIBERO_LICENSE_FILE=/abs/path/to/license.xml
 make test-e2e-docker
 ```
 
 The e2e test runner waits for the database port and then runs the package smoke
 tests against the live service.
 
+`make test-e2e-docker` now performs a local preflight check and fails early if
+`TIBERO_LICENSE_FILE` is unset or does not point to a real file.

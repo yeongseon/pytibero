@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Mapping, Sequence
 
-from .exceptions import InterfaceError, ProgrammingError
+from .exceptions import InterfaceError, NotSupportedError, ProgrammingError
 
 DescriptionItem = tuple[str, int, None, None, None, None, bool | None]
 
@@ -16,37 +16,48 @@ class Cursor:
         self._connection = connection
         self._native = native_cursor
         self._closed = False
+        self._rownumber: int | None = None
+
+    @property
+    def connection(self) -> object:
+        self._ensure_ready()
+        return self._connection
 
     @property
     def description(self) -> tuple[DescriptionItem, ...] | None:
-        self._check_open()
+        self._ensure_ready()
         return self._native.description
 
     @property
     def rowcount(self) -> int:
-        self._check_open()
+        self._ensure_ready()
         return int(self._native.rowcount)
 
     @property
     def arraysize(self) -> int:
-        self._check_open()
+        self._ensure_ready()
         return int(getattr(self._native, "arraysize", 1))
 
     @arraysize.setter
     def arraysize(self, value: int) -> None:
-        self._check_open()
+        self._ensure_ready()
         if value < 1:
             raise ProgrammingError("arraysize must be greater than zero")
         self._native.arraysize = value
 
     @property
+    def rownumber(self) -> int | None:
+        self._ensure_ready()
+        return self._rownumber
+
+    @property
     def lastrowid(self) -> object | None:
-        self._check_open()
+        self._ensure_ready()
         return getattr(self._native, "lastrowid", None)
 
     @property
     def native_cursor(self) -> object:
-        self._check_open()
+        self._ensure_ready()
         return self._native
 
     def close(self) -> None:
@@ -65,13 +76,13 @@ class Cursor:
         operation: str,
         parameters: Sequence[Any] | Mapping[str, Any] | None = None,
     ) -> Cursor:
-        self._check_open()
-        self._connection._ensure_open()
+        self._ensure_ready()
         bound_parameters = _normalize_parameters(parameters)
         try:
             self._native.execute(operation, *bound_parameters)
         except Exception as exc:
             self._connection._reraise_backend_error(exc)
+        self._sync_rownumber_after_execute()
         return self
 
     def executemany(
@@ -79,41 +90,49 @@ class Cursor:
         operation: str,
         seq_of_parameters: Sequence[Sequence[Any] | Mapping[str, Any]],
     ) -> Cursor:
-        self._check_open()
-        self._connection._ensure_open()
+        self._ensure_ready()
         rows = [_normalize_parameters(parameters) for parameters in seq_of_parameters]
         try:
             self._native.executemany(operation, rows)
         except Exception as exc:
             self._connection._reraise_backend_error(exc)
+        self._sync_rownumber_after_execute()
         return self
 
     def fetchone(self) -> tuple[Any, ...] | None:
-        self._check_open()
+        self._ensure_ready()
         try:
             row = self._native.fetchone()
         except Exception as exc:
             self._connection._reraise_backend_error(exc)
         if row is None:
             return None
+        if self._rownumber is None:
+            self._rownumber = 1
+        else:
+            self._rownumber += 1
         return tuple(row)
 
     def fetchmany(self, size: int | None = None) -> list[tuple[Any, ...]]:
-        self._check_open()
+        self._ensure_ready()
         fetch_size = self.arraysize if size is None else size
         try:
             rows = self._native.fetchmany(fetch_size)
         except Exception as exc:
             self._connection._reraise_backend_error(exc)
-        return [tuple(row) for row in rows]
+        converted_rows = [tuple(row) for row in rows]
+        self._advance_rownumber(len(converted_rows))
+        return converted_rows
 
     def fetchall(self) -> list[tuple[Any, ...]]:
-        self._check_open()
+        self._ensure_ready()
         try:
             rows = self._native.fetchall()
         except Exception as exc:
             self._connection._reraise_backend_error(exc)
-        return [tuple(row) for row in rows]
+        converted_rows = [tuple(row) for row in rows]
+        self._advance_rownumber(len(converted_rows))
+        return converted_rows
 
     def setinputsizes(self, sizes: Any) -> None:
         _ = sizes
@@ -128,14 +147,27 @@ class Cursor:
         return parameters
 
     def nextset(self) -> None:
-        self._check_open()
+        self._ensure_ready()
         nextset = getattr(self._native, "nextset", None)
         if nextset is None:
             return None
         try:
-            return nextset()
+            result = nextset()
         except Exception as exc:
             self._connection._reraise_backend_error(exc)
+        self._sync_rownumber_after_execute()
+        return result
+
+    def scroll(self, value: int, mode: str = "relative") -> None:
+        self._ensure_ready()
+        native_scroll = getattr(self._native, "scroll", None)
+        if native_scroll is None:
+            raise NotSupportedError("scroll is not supported by the active cursor")
+        try:
+            native_scroll(value, mode=mode)
+        except Exception as exc:
+            self._connection._reraise_backend_error(exc)
+        self._update_rownumber_after_scroll(value, mode)
 
     def __iter__(self) -> Cursor:
         return self
@@ -147,7 +179,7 @@ class Cursor:
         return row
 
     def __enter__(self) -> Cursor:
-        self._check_open()
+        self._ensure_ready()
         return self
 
     def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
@@ -157,6 +189,29 @@ class Cursor:
     def _check_open(self) -> None:
         if self._closed:
             raise InterfaceError("cursor is closed")
+
+    def _ensure_ready(self) -> None:
+        self._check_open()
+        self._connection._ensure_open()
+
+    def _sync_rownumber_after_execute(self) -> None:
+        self._rownumber = 0 if getattr(self._native, "description", None) is not None else None
+
+    def _advance_rownumber(self, rows_read: int) -> None:
+        if rows_read == 0:
+            return
+        if self._rownumber is None:
+            self._rownumber = rows_read
+        else:
+            self._rownumber += rows_read
+
+    def _update_rownumber_after_scroll(self, value: int, mode: str) -> None:
+        if mode == "absolute":
+            self._rownumber = value
+            return
+        if mode == "relative":
+            base = 0 if self._rownumber is None else self._rownumber
+            self._rownumber = base + value
 
 
 def _normalize_parameters(

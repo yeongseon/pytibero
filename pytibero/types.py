@@ -90,4 +90,3 @@ def Binary(value: bytes | bytearray | str) -> bytes:
         return value.encode("utf-8")
     msg = f"Binary() argument must be bytes, bytearray, or str, not {type(value).__name__}"
     raise TypeError(msg)
-

@@ -76,4 +76,3 @@ class ProgrammingError(DatabaseError):
 
 class NotSupportedError(DatabaseError):
     """Raised when a requested API surface is not implemented or supported."""
-

@@ -27,7 +27,9 @@ class TypesTestCase(unittest.TestCase):
         ticks = 1_741_769_200
 
         self.assertEqual(pytibero.DateFromTicks(ticks), datetime.date.fromtimestamp(ticks))
-        self.assertEqual(pytibero.TimeFromTicks(ticks), datetime.datetime.fromtimestamp(ticks).time())
+        self.assertEqual(
+            pytibero.TimeFromTicks(ticks), datetime.datetime.fromtimestamp(ticks).time()
+        )
         self.assertEqual(pytibero.TimestampFromTicks(ticks), datetime.datetime.fromtimestamp(ticks))
 
         with self.assertRaises(TypeError):
