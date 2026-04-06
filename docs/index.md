@@ -2,12 +2,32 @@
 
 Unofficial Python DB-API 2.0 connector for Tibero.
 
+!!! info "What pytibero provides"
+    `pytibero` exposes a DB-API 2.0-compliant interface while supporting two runtime backends:
+    `pyodbc` (default) and native `tbcli`.
+
+!!! tip "Portable application code"
+    Write against `pytibero` exception classes and DB-API patterns so your code remains backend-agnostic.
+
 ## Key features
 
 - Python DB-API 2.0 compatible interface for Tibero
 - Direct host/port and DSN-based connection options
 - Optional `tbcli` backend for native Tibero client usage
 - Familiar cursor and transaction workflow via a Pythonic API
+
+## Feature overview
+
+```mermaid
+flowchart LR
+    A[Application code] --> B[pytibero.connect]
+    B --> C{Backend}
+    C -->|pyodbc| D[ODBC driver path]
+    C -->|tbcli| E[Native tbcli path]
+    D --> F[Connection and Cursor API]
+    E --> F
+    F --> G[DB-API exceptions and type helpers]
+```
 
 ## Quick install
 
@@ -35,6 +55,12 @@ with pytibero.connect(
 ## Documentation
 
 - [Getting Started](installation.md)
+- [Quick Start](quickstart.md)
+- [Connection Guide](connection.md)
+- [API Reference](api.md)
+- [Type Mapping](types.md)
+- [Error Handling](errors.md)
+- [FAQ](faq.md)
 - [Development](testing.md)
 
 ## Project links

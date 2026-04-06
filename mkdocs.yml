@@ -31,10 +31,15 @@ nav:
   - Home: index.md
   - Getting Started:
       - Installation: installation.md
-      - Architecture: architecture.md
-  - Development:
-      - Testing: testing.md
-      - Agent Playbook: agent-playbook.md
+      - Quick Start: quickstart.md
+      - Connection Guide: connection.md
+  - Reference:
+      - API Reference: api.md
+      - Type Mapping: types.md
+      - Error Handling: errors.md
+  - Architecture: architecture.md
+  - Testing: testing.md
+  - FAQ: faq.md
 
 markdown_extensions:
   - admonition
