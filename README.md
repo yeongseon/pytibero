@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/yeongseon/pytibero/actions/workflows/ci.yml/badge.svg)](https://github.com/yeongseon/pytibero/actions/workflows/ci.yml)
 [![PyPI version](https://img.shields.io/pypi/v/pytibero)](https://pypi.org/project/pytibero/)
+[![docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://yeongseon.github.io/pytibero/)
 
 **Unofficial Python DB-API 2.0 connector for Tibero**
 
