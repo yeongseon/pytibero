@@ -1,0 +1,23 @@
+# pytibero
+
+> Pure Python DB-API 2.0 driver for the Tibero relational database, providing direct connectivity without native client libraries.
+
+pytibero is a lightweight, pure-Python database driver implementing PEP 249 (DB-API 2.0) for Tibero RDBMS. It handles wire-protocol communication, type conversion, connection management, and parameterized queries. Default connection: `tibero://tibero:@localhost:8629/tibero`.
+
+## Core Documentation
+
+- [Installation](https://yeongseon.github.io/pytibero/installation/): pip install, prerequisites, verification
+- [Quick Start](https://yeongseon.github.io/pytibero/quickstart/): First connection, basic CRUD, parameterized queries
+- [Connection Guide](https://yeongseon.github.io/pytibero/connection/): URL formats, connection parameters, pooling, timeouts
+- [API Reference](https://yeongseon.github.io/pytibero/api/): Module, Connection, Cursor classes, DB-API 2.0 globals
+- [Type Mapping](https://yeongseon.github.io/pytibero/types/): Tibero-to-Python type conversion, custom type handling
+
+## Reference
+
+- [Error Handling](https://yeongseon.github.io/pytibero/errors/): Exception hierarchy, error codes, troubleshooting
+- [Architecture](https://yeongseon.github.io/pytibero/architecture/): Wire protocol, packet format, connection lifecycle
+
+## Optional
+
+- [Testing Guide](https://yeongseon.github.io/pytibero/testing/): Running tests, test configuration, fixtures
+- [FAQ](https://yeongseon.github.io/pytibero/faq/): Common questions, compatibility, known limitations
