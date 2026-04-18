@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import datetime
 import unittest
+from typing import Any, cast
 
 import pytibero
 
@@ -9,9 +10,21 @@ import pytibero
 class TypesTestCase(unittest.TestCase):
     def test_type_objects_compare_to_type_codes(self) -> None:
         self.assertEqual(pytibero.STRING, 1)
-        self.assertEqual(pytibero.BINARY, 2)
+        self.assertEqual(pytibero.STRING, 12)
+        self.assertEqual(pytibero.BINARY, -2)
+        self.assertEqual(pytibero.BINARY, -3)
+        self.assertEqual(pytibero.BINARY, -4)
+        self.assertEqual(pytibero.NUMBER, 2)
         self.assertEqual(pytibero.NUMBER, 3)
-        self.assertEqual(pytibero.DATETIME, 8)
+        self.assertEqual(pytibero.NUMBER, 4)
+        self.assertEqual(pytibero.NUMBER, 5)
+        self.assertEqual(pytibero.NUMBER, 6)
+        self.assertEqual(pytibero.NUMBER, 7)
+        self.assertEqual(pytibero.NUMBER, 8)
+        self.assertEqual(pytibero.NUMBER, -5)
+        self.assertEqual(pytibero.DATETIME, 91)
+        self.assertEqual(pytibero.DATETIME, 92)
+        self.assertEqual(pytibero.DATETIME, 93)
         self.assertEqual(pytibero.ROWID, 15)
 
     def test_constructors(self) -> None:
@@ -33,7 +46,7 @@ class TypesTestCase(unittest.TestCase):
         self.assertEqual(pytibero.TimestampFromTicks(ticks), datetime.datetime.fromtimestamp(ticks))
 
         with self.assertRaises(TypeError):
-            pytibero.Binary(123)  # type: ignore[arg-type]
+            pytibero.Binary(cast(Any, 123))
 
     def test_dbapi_type_dunders_and_binary_inputs(self) -> None:
         self.assertEqual(pytibero.STRING, pytibero.STRING)
@@ -46,4 +59,4 @@ class TypesTestCase(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    _ = unittest.main()

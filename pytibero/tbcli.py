@@ -440,40 +440,52 @@ class TbcliCursor:
 
     def _get_data(self, column_index: int, sql_type: int) -> object:
         if sql_type in {SQL_BINARY, SQL_VARBINARY, SQL_LONGVARBINARY}:
+            binary_chunks: list[bytes] = []
+            while True:
+                buffer = ctypes.create_string_buffer(4096)
+                indicator = ctypes.c_ssize_t()
+                rc = self._driver._lib.SQLGetData(
+                    self._statement,
+                    column_index,
+                    SQL_C_BINARY,
+                    buffer,
+                    len(buffer),
+                    ctypes.byref(indicator),
+                )
+                if rc == SQL_NO_DATA or indicator.value == SQL_NULL_DATA:
+                    return None if not binary_chunks else b"".join(binary_chunks)
+                self._driver._check_rc(
+                    rc, SQL_HANDLE_STMT, self._statement, default_message="tbcli getdata failed"
+                )
+                chunk_length = (
+                    len(buffer) if rc == SQL_SUCCESS_WITH_INFO else max(int(indicator.value), 0)
+                )
+                binary_chunks.append(bytes(buffer[:chunk_length]))
+                if rc != SQL_SUCCESS_WITH_INFO:
+                    return b"".join(binary_chunks)
+
+        text_chunks: list[str] = []
+        while True:
             buffer = ctypes.create_string_buffer(4096)
             indicator = ctypes.c_ssize_t()
             rc = self._driver._lib.SQLGetData(
                 self._statement,
                 column_index,
-                SQL_C_BINARY,
+                SQL_C_CHAR,
                 buffer,
                 len(buffer),
                 ctypes.byref(indicator),
             )
             if rc == SQL_NO_DATA or indicator.value == SQL_NULL_DATA:
-                return None
+                return (
+                    None if not text_chunks else _convert_text_value("".join(text_chunks), sql_type)
+                )
             self._driver._check_rc(
                 rc, SQL_HANDLE_STMT, self._statement, default_message="tbcli getdata failed"
             )
-            return bytes(buffer[: int(indicator.value)])
-
-        buffer = ctypes.create_string_buffer(4096)
-        indicator = ctypes.c_ssize_t()
-        rc = self._driver._lib.SQLGetData(
-            self._statement,
-            column_index,
-            SQL_C_CHAR,
-            buffer,
-            len(buffer),
-            ctypes.byref(indicator),
-        )
-        if rc == SQL_NO_DATA or indicator.value == SQL_NULL_DATA:
-            return None
-        self._driver._check_rc(
-            rc, SQL_HANDLE_STMT, self._statement, default_message="tbcli getdata failed"
-        )
-        text = buffer.value.decode("utf-8", errors="replace")
-        return _convert_text_value(text, sql_type)
+            text_chunks.append(buffer.value.decode("utf-8", errors="replace"))
+            if rc != SQL_SUCCESS_WITH_INFO:
+                return _convert_text_value("".join(text_chunks), sql_type)
 
     def _ensure_open(self) -> None:
         if self._closed:
@@ -519,7 +531,13 @@ def _make_binding(value: object) -> _Binding:
             ctypes.c_ssize_t(ctypes.sizeof(number)),
             number,
         )
-    if isinstance(value, (_decimal.Decimal, str)):
+    if isinstance(value, _decimal.Decimal):
+        encoded = str(value).encode("utf-8")
+        buffer = ctypes.create_string_buffer(encoded)
+        return _Binding(
+            SQL_C_CHAR, SQL_NUMERIC, buffer, len(encoded), ctypes.c_ssize_t(len(encoded)), buffer
+        )
+    if isinstance(value, str):
         encoded = str(value).encode("utf-8")
         buffer = ctypes.create_string_buffer(encoded)
         return _Binding(

@@ -34,7 +34,7 @@ from .types import (
 if TYPE_CHECKING:
     from .connection import Connection
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 apilevel = "2.0"
 threadsafety = 1
