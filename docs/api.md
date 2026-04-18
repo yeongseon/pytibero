@@ -188,12 +188,12 @@ Uses native cursor scrolling if available, else raises `NotSupportedError`.
 
 ### `DBAPIType` objects
 
-| Object | Values set |
+| Object | ODBC SQL type codes |
 |---|---|
-| `STRING` | `{1, 12, 13}` |
-| `BINARY` | `{2, 14}` |
-| `NUMBER` | `{3, 4, 5, 6, 7}` |
-| `DATETIME` | `{8, 9, 10, 11}` |
+| `STRING` | `{1, 12}` (`SQL_CHAR`, `SQL_VARCHAR`) |
+| `BINARY` | `{-2, -3, -4}` (`SQL_BINARY`, `SQL_VARBINARY`, `SQL_LONGVARBINARY`) |
+| `NUMBER` | `{-5, 2, 3, 4, 5, 6, 7, 8}` (`SQL_BIGINT`, `SQL_NUMERIC`…`SQL_DOUBLE`) |
+| `DATETIME` | `{91, 92, 93}` (`SQL_TYPE_DATE`, `SQL_TYPE_TIME`, `SQL_TYPE_TIMESTAMP`) |
 | `ROWID` | `{15}` |
 
 ## Relationships

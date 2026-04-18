@@ -6,16 +6,13 @@
 
 These are `DBAPIType` instances.
 
-| Type object | Internal code set | Typical meaning |
+| Type object | ODBC SQL type codes | Typical meaning |
 |---|---|---|
-| `STRING` | `{1, 12, 13}` | Character/text-like SQL values |
-| `BINARY` | `{2, 14}` | Binary/blob-like SQL values |
-| `NUMBER` | `{3, 4, 5, 6, 7}` | Numeric SQL values |
-| `DATETIME` | `{8, 9, 10, 11}` | Date/time SQL values |
+| `STRING` | `{1, 12}` (`SQL_CHAR`, `SQL_VARCHAR`) | Character/text-like SQL values |
+| `BINARY` | `{-2, -3, -4}` (`SQL_BINARY`, `SQL_VARBINARY`, `SQL_LONGVARBINARY`) | Binary/blob-like SQL values |
+| `NUMBER` | `{-5, 2, 3, 4, 5, 6, 7, 8}` (`SQL_BIGINT`, `SQL_NUMERIC`, `SQL_DECIMAL`, `SQL_INTEGER`, `SQL_SMALLINT`, `SQL_FLOAT`, `SQL_REAL`, `SQL_DOUBLE`) | Numeric SQL values |
+| `DATETIME` | `{91, 92, 93}` (`SQL_TYPE_DATE`, `SQL_TYPE_TIME`, `SQL_TYPE_TIMESTAMP`) | Date/time SQL values |
 | `ROWID` | `{15}` | Row identifier values |
-
-!!! note "Placeholder metadata codes"
-    Current integer code sets are package-defined placeholders documented in code comments and may evolve as transport metadata mapping gets refined.
 
 ## Type constructors
 
