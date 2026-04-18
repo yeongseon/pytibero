@@ -8,8 +8,8 @@ import datetime
 class DBAPIType:
     """DB-API 2.0 type object.
 
-    The integer codes are provisional placeholders until Tibero metadata mapping
-    is implemented in the transport backend.
+    Compares equal to any integer type code in its ``values`` set.
+    This follows the PEP 249 specification for type objects.
     """
 
     def __init__(self, name: str, values: frozenset[int]) -> None:
@@ -36,10 +36,42 @@ class DBAPIType:
         return f"DBAPIType({self.name!r})"
 
 
-STRING = DBAPIType("STRING", frozenset({1, 12, 13}))
-BINARY = DBAPIType("BINARY", frozenset({2, 14}))
-NUMBER = DBAPIType("NUMBER", frozenset({3, 4, 5, 6, 7}))
-DATETIME = DBAPIType("DATETIME", frozenset({8, 9, 10, 11}))
+SQL_CHAR = 1
+SQL_NUMERIC = 2
+SQL_DECIMAL = 3
+SQL_INTEGER = 4
+SQL_SMALLINT = 5
+SQL_FLOAT = 6
+SQL_REAL = 7
+SQL_DOUBLE = 8
+SQL_VARCHAR = 12
+SQL_TYPE_DATE = 91
+SQL_TYPE_TIME = 92
+SQL_TYPE_TIMESTAMP = 93
+SQL_BIGINT = -5
+SQL_BINARY = -2
+SQL_VARBINARY = -3
+SQL_LONGVARBINARY = -4
+
+
+STRING = DBAPIType("STRING", frozenset({SQL_CHAR, SQL_VARCHAR}))
+BINARY = DBAPIType("BINARY", frozenset({SQL_BINARY, SQL_VARBINARY, SQL_LONGVARBINARY}))
+NUMBER = DBAPIType(
+    "NUMBER",
+    frozenset(
+        {
+            SQL_NUMERIC,
+            SQL_DECIMAL,
+            SQL_INTEGER,
+            SQL_SMALLINT,
+            SQL_FLOAT,
+            SQL_REAL,
+            SQL_DOUBLE,
+            SQL_BIGINT,
+        }
+    ),
+)
+DATETIME = DBAPIType("DATETIME", frozenset({SQL_TYPE_DATE, SQL_TYPE_TIME, SQL_TYPE_TIMESTAMP}))
 ROWID = DBAPIType("ROWID", frozenset({15}))
 
 

@@ -17,7 +17,7 @@ TmaxSoft. This project is not affiliated with TmaxSoft.
 
 - Python DB-API 2.0 compatible module surface
 - Direct host/port or DSN-based Tibero ODBC connections
-- Optional `tbcli` backend for Tibero's native client library path
+- Optional `tbcli` backend for Tibero's native client library path (with `Decimal` precision and chunked large-column reads)
 - Explicit `autocommit` plus routed `pyodbc.connect(...)` keyword support
 - Package-owned exception hierarchy and type constructors
 - Safe access to common `pyodbc` connection metadata such as `getinfo(...)`
