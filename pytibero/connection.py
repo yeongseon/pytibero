@@ -112,9 +112,6 @@ class Connection:
             native_cursor = self._native.cursor()
         except Exception as exc:
             self._reraise_backend_error(exc)
-        if self._backend_name == "tbcli":
-            self._cursors.add(native_cursor)
-            return native_cursor
         from .cursor import Cursor
 
         cursor = Cursor(self, native_cursor)
