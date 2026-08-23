@@ -78,7 +78,6 @@ class TbcliBackendTestCase(unittest.TestCase):
                 # fetchmany() must default to arraysize without an explicit size.
                 self.assertEqual(cursor.fetchmany(), [(2, "beta")])
 
-
     def test_tbcli_backend_uses_dsn_connect_mode(self) -> None:
         fake_tbcli = FakeTbcliDriver()
 
@@ -184,7 +183,6 @@ class TbcliModuleTestCase(unittest.TestCase):
         )
 
         self.assertEqual(cursor._get_data(1, tbcli.SQL_VARCHAR), "가나다")
-
 
     def test_get_data_reads_chunked_binary_until_complete(self) -> None:
         first_chunk = b"a" * 4096

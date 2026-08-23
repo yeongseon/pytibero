@@ -19,14 +19,14 @@ from pytibero.tbcli import (
     SQL_NUMERIC,
     SQL_REAL,
     SQL_SMALLINT,
-SQL_SUCCESS,
-SQL_TYPE_DATE,
-SQL_TYPE_TIME,
-SQL_TYPE_TIMESTAMP,
-_convert_text_value,
-_make_binding,
-_parse_datetime_value,
-load_tbcli_driver,
+    SQL_SUCCESS,
+    SQL_TYPE_DATE,
+    SQL_TYPE_TIME,
+    SQL_TYPE_TIMESTAMP,
+    _convert_text_value,
+    _make_binding,
+    _parse_datetime_value,
+    load_tbcli_driver,
 )
 
 
@@ -149,7 +149,6 @@ class TbcliHelpersTestCase(unittest.TestCase):
         precise = _convert_text_value("12.340", SQL_NUMERIC)
         self.assertIsInstance(precise, decimal.Decimal)
         self.assertEqual(precise, decimal.Decimal("12.340"))
-
 
     def test_connect_builds_tbcli_connection_through_driver(self) -> None:
         class Driver:
