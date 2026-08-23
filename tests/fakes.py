@@ -81,7 +81,6 @@ class FakeCursor:
 
     def nextset(self) -> None:
         self.nextset_calls += 1
-        return None
 
     def scroll(self, value: int, mode: str = "relative") -> None:
         self.scroll_calls.append((value, mode))

@@ -10,7 +10,6 @@ from pytibero.exceptions import (
     OperationalError,
     ProgrammingError,
 )
-
 from tests.fakes import FakeCursor, FakeOperationalError, FakePyodbcModule
 
 

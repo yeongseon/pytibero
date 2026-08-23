@@ -9,8 +9,8 @@ from unittest.mock import patch
 
 import pytibero
 from pytibero import tbcli
-from pytibero.exceptions import InterfaceError
-
+from pytibero.config import ConnectionConfig
+from pytibero.exceptions import InterfaceError, OperationalError
 from tests.fakes import FakeTbcliDriver
 
 
@@ -222,6 +222,67 @@ class TbcliModuleTestCase(unittest.TestCase):
         )
 
         self.assertEqual(cursor._get_data(1, tbcli.SQL_LONGVARBINARY), first_chunk + second_chunk)
+
+
+class TbcliHandleLifecycleTestCase(unittest.TestCase):
+    def _make_failing_lib(self, *, fail_dbc_alloc: bool = False, connect_rc: int = -1) -> Any:
+        class FailingLib:
+            def __init__(self) -> None:
+                self.freed: list[tuple[int, int | None]] = []
+                self._next_handle = 1
+
+            def SQLAllocHandle(self, handle_type, parent, handle_ptr):
+                if fail_dbc_alloc and handle_type == tbcli.SQL_HANDLE_DBC:
+                    return -1
+                ctypes.cast(
+                    handle_ptr, ctypes.POINTER(ctypes.c_void_p)
+                ).contents.value = self._next_handle
+                self._next_handle += 1
+                return tbcli.SQL_SUCCESS
+
+            def SQLSetEnvAttr(self, *args):
+                return tbcli.SQL_SUCCESS
+
+            def SQLSetConnectAttr(self, *args):
+                return tbcli.SQL_SUCCESS
+
+            def SQLDriverConnect(self, *args):
+                return connect_rc
+
+            def SQLConnect(self, *args):
+                return connect_rc
+
+            def SQLGetDiagRec(self, *args):
+                return tbcli.SQL_NO_DATA
+
+            def SQLFreeHandle(self, handle_type, handle):
+                self.freed.append((handle_type, handle.value))
+                return tbcli.SQL_SUCCESS
+
+        return FailingLib()
+
+    def test_connect_failure_frees_env_and_dbc_handles(self) -> None:
+        # A failure during _connect() must not leak the allocated env/dbc handles (#init leak).
+        lib = self._make_failing_lib(connect_rc=-1)
+        driver = tbcli.CtypesTbcliDriver(lib)
+
+        with self.assertRaises(OperationalError):
+            tbcli.TbcliConnection(driver, ConnectionConfig(backend="tbcli"))
+
+        freed_types = [handle_type for handle_type, _ in lib.freed]
+        self.assertIn(tbcli.SQL_HANDLE_DBC, freed_types)
+        self.assertIn(tbcli.SQL_HANDLE_ENV, freed_types)
+
+    def test_dbc_alloc_failure_frees_env_handle(self) -> None:
+        # If the dbc handle cannot be allocated, the already-allocated env handle must be freed.
+        lib = self._make_failing_lib(fail_dbc_alloc=True)
+        driver = tbcli.CtypesTbcliDriver(lib)
+
+        with self.assertRaises(OperationalError):
+            tbcli.TbcliConnection(driver, ConnectionConfig(backend="tbcli"))
+
+        freed_types = [handle_type for handle_type, _ in lib.freed]
+        self.assertEqual(freed_types, [tbcli.SQL_HANDLE_ENV])
 
 
 if __name__ == "__main__":

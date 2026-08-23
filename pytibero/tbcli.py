@@ -153,13 +153,22 @@ class TbcliConnection:
     def __init__(self, driver: CtypesTbcliDriver, config: ConnectionConfig) -> None:
         self._driver = driver
         self._config = config
-        self._env = driver._alloc_handle(SQL_HANDLE_ENV, None)
-        self._dbc = driver._alloc_handle(SQL_HANDLE_DBC, self._env)
         self._closed = False
         self._autocommit = True
-        self._configure_environment()
-        self._connect()
-        self.autocommit = config.autocommit
+        self._env = driver._alloc_handle(SQL_HANDLE_ENV, None)
+        try:
+            self._dbc = driver._alloc_handle(SQL_HANDLE_DBC, self._env)
+        except Exception:
+            driver._free_handle(SQL_HANDLE_ENV, self._env)
+            raise
+        try:
+            self._configure_environment()
+            self._connect()
+            self.autocommit = config.autocommit
+        except Exception:
+            driver._free_handle(SQL_HANDLE_DBC, self._dbc)
+            driver._free_handle(SQL_HANDLE_ENV, self._env)
+            raise
 
     @property
     def autocommit(self) -> bool:
