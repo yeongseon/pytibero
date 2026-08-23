@@ -54,6 +54,30 @@ class TbcliBackendTestCase(unittest.TestCase):
             connection.autocommit = True
             self.assertEqual(fake_tbcli.autocommit_updates, [True])
 
+    def test_tbcli_cursor_is_wrapped_in_dbapi_cursor(self) -> None:
+        # tbcli cursors must expose the same DB-API surface as pyodbc cursors,
+        # including rownumber tracking and context-manager support (#20).
+        from pytibero.cursor import Cursor
+
+        fake_tbcli = FakeTbcliDriver()
+
+        with patch("pytibero.connection.load_tbcli_driver", return_value=fake_tbcli):
+            connection = pytibero.connect(
+                host="localhost",
+                user="tibero",
+                password="tmax",
+                backend="tbcli",
+            )
+
+            with connection.cursor() as cursor:
+                self.assertIsInstance(cursor, Cursor)
+                cursor.execute("SELECT id, name FROM demo")
+                self.assertEqual(cursor.rownumber, 0)
+                self.assertEqual(cursor.fetchone(), (1, "alpha"))
+                self.assertEqual(cursor.rownumber, 1)
+                # fetchmany() must default to arraysize without an explicit size.
+                self.assertEqual(cursor.fetchmany(), [(2, "beta")])
+
     def test_tbcli_backend_uses_dsn_connect_mode(self) -> None:
         fake_tbcli = FakeTbcliDriver()
 
@@ -126,6 +150,39 @@ class TbcliModuleTestCase(unittest.TestCase):
         self.assertEqual(
             cursor._get_data(1, tbcli.SQL_VARCHAR), (first_chunk + second_chunk).decode()
         )
+
+    def test_get_data_joins_chunks_before_decoding_multibyte_text(self) -> None:
+        # A multibyte UTF-8 character split across the chunk boundary must not
+        # be corrupted (regression for #19).
+        full = "가나다".encode()
+        first_chunk = full[:2]
+        second_chunk = full[2:]
+
+        class SplitMultibyteLib:
+            def __init__(self) -> None:
+                self.calls = 0
+                self.chunks = [
+                    (tbcli.SQL_SUCCESS_WITH_INFO, first_chunk, len(full)),
+                    (tbcli.SQL_SUCCESS, second_chunk, len(second_chunk)),
+                ]
+
+            def SQLGetData(self, statement, column_index, c_type, buffer, buffer_length, indicator):
+                _ = (statement, column_index, c_type, buffer_length)
+                rc, chunk, total_length = self.chunks[self.calls]
+                self.calls += 1
+                buffer.value = chunk
+                ctypes.cast(
+                    indicator, ctypes.POINTER(ctypes.c_ssize_t)
+                ).contents.value = total_length
+                return rc
+
+        cursor = tbcli.TbcliCursor(
+            cast(tbcli.TbcliConnection, cast(object, SimpleNamespace(_ensure_open=lambda: None))),
+            tbcli.CtypesTbcliDriver(SplitMultibyteLib()),
+            ctypes.c_void_p(1),
+        )
+
+        self.assertEqual(cursor._get_data(1, tbcli.SQL_VARCHAR), "가나다")
 
     def test_get_data_reads_chunked_binary_until_complete(self) -> None:
         first_chunk = b"a" * 4096

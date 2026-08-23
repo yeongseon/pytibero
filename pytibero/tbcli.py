@@ -464,7 +464,7 @@ class TbcliCursor:
                 if rc != SQL_SUCCESS_WITH_INFO:
                     return b"".join(binary_chunks)
 
-        text_chunks: list[str] = []
+        text_chunks: list[bytes] = []
         while True:
             buffer = ctypes.create_string_buffer(4096)
             indicator = ctypes.c_ssize_t()
@@ -478,14 +478,20 @@ class TbcliCursor:
             )
             if rc == SQL_NO_DATA or indicator.value == SQL_NULL_DATA:
                 return (
-                    None if not text_chunks else _convert_text_value("".join(text_chunks), sql_type)
+                    None
+                    if not text_chunks
+                    else _convert_text_value(
+                        b"".join(text_chunks).decode("utf-8", errors="replace"), sql_type
+                    )
                 )
             self._driver._check_rc(
                 rc, SQL_HANDLE_STMT, self._statement, default_message="tbcli getdata failed"
             )
-            text_chunks.append(buffer.value.decode("utf-8", errors="replace"))
+            text_chunks.append(buffer.value)
             if rc != SQL_SUCCESS_WITH_INFO:
-                return _convert_text_value("".join(text_chunks), sql_type)
+                return _convert_text_value(
+                    b"".join(text_chunks).decode("utf-8", errors="replace"), sql_type
+                )
 
     def _ensure_open(self) -> None:
         if self._closed:
@@ -576,13 +582,13 @@ def _make_binding(value: object) -> _Binding:
 
 
 def _convert_text_value(text: str, sql_type: int) -> object:
+    if sql_type in {SQL_FLOAT, SQL_REAL, SQL_DOUBLE}:
+        return float(text)
     if sql_type in NUMBER.values or sql_type in {SQL_SMALLINT, SQL_INTEGER, SQL_BIGINT}:
         try:
             return int(text)
         except ValueError:
             return _decimal.Decimal(text)
-    if sql_type in {SQL_FLOAT, SQL_REAL, SQL_DOUBLE}:
-        return float(text)
     if (
         sql_type in DATETIME.values
         or sql_type == SQL_TYPE_DATE

@@ -10,8 +10,15 @@ from pytibero.config import ConnectionConfig
 from pytibero.exceptions import DataError, InterfaceError, OperationalError, ProgrammingError
 from pytibero.tbcli import (
     CtypesTbcliDriver,
+    SQL_BIGINT,
+    SQL_DOUBLE,
+    SQL_FLOAT,
     SQL_HANDLE_DBC,
+    SQL_INTEGER,
     SQL_NO_DATA,
+    SQL_NUMERIC,
+    SQL_REAL,
+    SQL_SMALLINT,
     SQL_SUCCESS,
     SQL_TYPE_DATE,
     SQL_TYPE_TIME,
@@ -109,7 +116,9 @@ class TbcliHelpersTestCase(unittest.TestCase):
     def test_convert_text_value_and_parse_datetime_cover_supported_shapes(self) -> None:
         self.assertEqual(_convert_text_value("7", 4), 7)
         self.assertEqual(_convert_text_value("2.5", 3), decimal.Decimal("2.5"))
-        self.assertEqual(_convert_text_value("1.5", 8), 1.5)
+        double_value = _convert_text_value("1.5", 8)
+        self.assertIsInstance(double_value, float)
+        self.assertEqual(double_value, 1.5)
         self.assertEqual(
             _convert_text_value("2026-04-02", SQL_TYPE_DATE), datetime.date(2026, 4, 2)
         )
@@ -126,6 +135,20 @@ class TbcliHelpersTestCase(unittest.TestCase):
 
         with self.assertRaises(DataError):
             _parse_datetime_value("x", 999)
+
+    def test_convert_text_value_maps_numeric_sql_types_to_python_types(self) -> None:
+        # Float/real/double must return float, not Decimal (regression for #18).
+        for sql_type in (SQL_FLOAT, SQL_REAL, SQL_DOUBLE):
+            result = _convert_text_value("1.5", sql_type)
+            self.assertIsInstance(result, float)
+            self.assertEqual(result, 1.5)
+        # Integer types return int; NUMERIC/DECIMAL keep Decimal precision.
+        for sql_type in (SQL_SMALLINT, SQL_INTEGER, SQL_BIGINT):
+            self.assertEqual(_convert_text_value("42", sql_type), 42)
+        self.assertIsInstance(_convert_text_value("42", SQL_INTEGER), int)
+        precise = _convert_text_value("12.340", SQL_NUMERIC)
+        self.assertIsInstance(precise, decimal.Decimal)
+        self.assertEqual(precise, decimal.Decimal("12.340"))
 
     def test_connect_builds_tbcli_connection_through_driver(self) -> None:
         class Driver:
