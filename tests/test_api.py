@@ -4,10 +4,10 @@ import unittest
 from unittest.mock import patch
 
 import pytibero
+from pytibero.config import ConnectionConfig
 from pytibero.connection import Connection
 from pytibero.cursor import Cursor
 from pytibero.exceptions import InterfaceError, ProgrammingError
-from pytibero.config import ConnectionConfig
 from pytibero.protocol import build_connection_string
 from tests.fakes import FakePyodbcModule
 

@@ -9,7 +9,6 @@ from unittest.mock import patch
 from pytibero.config import ConnectionConfig
 from pytibero.exceptions import DataError, InterfaceError, OperationalError, ProgrammingError
 from pytibero.tbcli import (
-    CtypesTbcliDriver,
     SQL_BIGINT,
     SQL_DOUBLE,
     SQL_FLOAT,
@@ -23,6 +22,7 @@ from pytibero.tbcli import (
     SQL_TYPE_DATE,
     SQL_TYPE_TIME,
     SQL_TYPE_TIMESTAMP,
+    CtypesTbcliDriver,
     _convert_text_value,
     _make_binding,
     _parse_datetime_value,

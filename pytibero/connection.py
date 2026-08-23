@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 from importlib import import_module
-from typing import Any
+from typing import Any, NoReturn
 
 from .config import ConnectionConfig
 from .exceptions import (
-    DataError,
     DatabaseError,
+    DataError,
     Error,
     IntegrityError,
     InterfaceError,
@@ -233,9 +233,9 @@ class Connection:
         except Exception as exc:
             self._reraise_backend_error(exc)
 
-    def _reraise_backend_error(self, error: Exception) -> None:
+    def _reraise_backend_error(self, error: Exception) -> NoReturn:
         if isinstance(error, Error):
-            raise error from error
+            raise error
         if self._backend_name == "pyodbc":
             raise _map_backend_error(error, self._backend) from error
         raise Error(str(error)) from error

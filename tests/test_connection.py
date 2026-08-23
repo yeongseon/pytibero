@@ -6,12 +6,11 @@ from unittest.mock import patch
 import pytibero
 from pytibero.connection import _extract_backend_error_details, _map_backend_error
 from pytibero.exceptions import Error, InterfaceError, NotSupportedError, OperationalError
-
 from tests.fakes import (
     ErrorRaisingNativeConnection,
+    FailingCursor,
     FakeOperationalError,
     FakePyodbcModule,
-    FailingCursor,
 )
 
 

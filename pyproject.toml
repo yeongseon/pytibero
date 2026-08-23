@@ -33,7 +33,7 @@ dependencies = [
 dev = [
     "pytest>=8.0",
     "pytest-cov>=5.0",
-    "ruff>=0.4,<0.16",
+    "ruff>=0.4",
 ]
 
 [tool.setuptools]
@@ -46,6 +46,18 @@ pytibero = ["py.typed"]
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+
+[tool.ruff.lint]
+# Rules disabled for intentional, documented patterns:
+ignore = [
+    "BLE001",  # backend wrappers deliberately catch Exception to remap to DB-API errors
+    "S110",    # best-effort cursor cleanup in close() intentionally swallows errors
+    "DTZ",     # DB-API date/time objects are timezone-naive by design
+    "PYI034",  # __enter__ intentionally returns the concrete class type
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["SIM117"]  # nested context managers read clearer in test setup
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
