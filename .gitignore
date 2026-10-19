@@ -9,5 +9,8 @@ dist/
 venv/
 .venv-review/
 
+# Local agent/tool state
+.omx/
+
 # mkdocs documentation
 site/
